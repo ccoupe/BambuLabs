@@ -27,6 +27,7 @@ metadata {
         capability "Health Check"
         capability "Presence Sensor"
         capability "Actuator"
+        capability "Notification"
 
         attribute "healthStatus", "ENUM", ["offline", "online","unknown"]
         attribute "bedTemperature", "NUMBER"
@@ -69,7 +70,11 @@ preferences {
     input name: "infoOutput", type: "bool", title: getFormat("header","Enable info logging"), defaultValue: true
     input name: "debugOutput", type: "bool", title: getFormat("header","Enable debug logging"), defaultValue: true
     input name: "traceOutput", type: "bool", title: getFormat("header","Enable trace logging"), defaultValue: true
+    input name: "enableNotify", type: "bool", title: getFormat("header", "Send Notifications"), defaultValue: false
+    input name: "notifyName", type: "text", title: getFormat("header", "Name for Notifications"), defaultValue: "", displayDuringSetup: true
+    input name: "runFree", type: "bool", title: getFormat("header", "Run as fast as possible. Caution!"), defaultValue: false
 }
+
 
 def installed() {
   initialize()
@@ -86,6 +91,8 @@ def initialize() {
     log.info "initialize() called"
     unschedule()
     if(deviceIP) connect()
+    state.printing = 0
+    // state.callCnt = 0
     state._comment = """<div style='color:#660000;font-weight: bold;font-size: 24px'>Please visit the community thread for descriptions and how-to.</div>"""+"""<a href="https://community.hubitat.com/t/release-bambu-labs-3d-printer-integration/117942" style='font-size: 24px'>Bambu Labs Driver</a>"""
 }
 
@@ -225,6 +232,10 @@ def sendCommand(payload) {
     interfaces.mqtt.publish("${topic}","${payload}")
 }
 
+def sendNote(msg) {
+  sendEvent(name: "deviceNotification", value: msg, isStateChange: true)
+}
+
 def parse(String event) {
     def message = interfaces.mqtt.parseMessage(event)
     // logTrace message
@@ -294,17 +305,38 @@ def parse(String event) {
             coolingFanSpeed = new BigDecimal(coolingFanSpeed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
             sendEvent(name: 'partCoolingFanSpeed', value: coolingFanSpeed, unit: '%', displayed: true)
         }
-
-        if (json.print.containsKey('mc_percent')) {
-            // Extract mc_percent value and send event
-            def printPerc = json.print.mc_percent as Integer
-            sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
-        }
-
-        if (json.print.containsKey('mc_remaining_time')) {
-            // Extract mc_remaining_time value and send event
+        
+        // Need both mc_percent and mc_remaining_time, plus state.printing
+        if (json.print.containsKey('mc_percent') && json.print.containsKey('mc_remaining_time')) {
             def timeRemaining = json.print.mc_remaining_time as Integer
-            sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
+            def printPerc = json.print.mc_percent as Integer
+            if (settings.enableNotify) {
+              // Need to figure out 'Started' and 'Finished'
+              lastPrint = state.printing
+              if (printPerc >= 1 && printPerc < 100 &&  lastPrint < 1) {
+                logDebug("Starting print ${printPerc.toString()}% ${lastPrint.toString()}")
+                sendNote(settings?.notifyName+" "+"Started")
+                state.printing = printPerc
+                // state.callCnt = 0
+              } else if (printPerc >= 100 && timeRemaining == 0 && lastPrint != 0) {
+                logDebug("Ending print")
+                sendNote(settings?.notifyName+" "+"Done")
+                state.printing = 0
+                logDebug("total calls ${state.callCnt.toString()}")
+                // state.callCnt = 0
+              } else if (printPerc < 100 && printPerc != lastPrint) {
+                logDebug("% changed to ${printPerc.toString()}")
+                sendNote(settings?.notifyName+" "+printPerc.toString()+"%")
+                state.printing = printPerc
+              } else {
+                // nothing to do here A lot of calls here. Let's count them
+                // logDebug("empty count is ${state.callCnt.toString()}")
+              }
+              //state.callCnt = state.callCnt + 1
+            } else {
+              sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
+              sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
+            }
         }
 
         if (json.print.containsKey('spd_lvl')) {
@@ -333,7 +365,7 @@ def parse(String event) {
             sendEvent(name: 'currentPrintFile', value: currentPrintFile, displayed: true)
         }
 
-        unsubscribe()
+        //unsubscribe()
     }
 }
 
