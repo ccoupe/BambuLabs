@@ -365,7 +365,7 @@ def parse(String event) {
             sendEvent(name: 'currentPrintFile', value: currentPrintFile, displayed: true)
         }
 
-        //unsubscribe()
+        if (settings.runFree == false) unsubscribe()
     }
 }
 
