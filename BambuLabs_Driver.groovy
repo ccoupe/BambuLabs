@@ -92,7 +92,10 @@ def initialize() {
     unschedule()
     if(deviceIP) connect()
     state.printing = 0
-    // state.callCnt = 0
+    state.vars = ['bed_temper': 0.0, 'nozzle_temper': 0.0, 'chamber_temper': 0.0,
+                  'big_fan1_speed': 0, 'big_fan2_speed': 0, 'heatbreak_fan_speed': 0,
+                  'cooling_fan_speed': 0, 'mc_percent': 0, 'mc_remaining_time': 0,
+                  'spd_lvl': 2, 'subtask_name': ""  ]
     state._comment = """<div style='color:#660000;font-weight: bold;font-size: 24px'>Please visit the community thread for descriptions and how-to.</div>"""+"""<a href="https://community.hubitat.com/t/release-bambu-labs-3d-printer-integration/117942" style='font-size: 24px'>Bambu Labs Driver</a>"""
 }
 
@@ -236,6 +239,10 @@ def sendNote(msg) {
   sendEvent(name: "deviceNotification", value: msg, isStateChange: true)
 }
 
+def deviceNotification(msg) {
+  sendEvent(name: "deviceNotification", value: msg, isStateChange: true)
+}
+
 def parse(String event) {
     def message = interfaces.mqtt.parseMessage(event)
     // logTrace message
@@ -252,58 +259,80 @@ def parse(String event) {
         }
     }
 
-    def json = new groovy.json.JsonSlurper().parseText(message.payload)
+    def json = new groovy.json.JsonSlurper().parseText(message.payload) 
     logTrace json
-
     if(json.containsKey('print')) {
+        def locals = state.vars
+
         if (json.print.containsKey('bed_temper')) {
             // Extract bed_temper value and send event
             def bedTemp = json.print.bed_temper as Double
-            sendEvent(name: 'bedTemperature', value: bedTemp, unit: '°C', displayed: true)
+            if (locals['bed_temper'] != bedTemp) {
+              sendEvent(name: 'bedTemperature', value: bedTemp, unit: '°C', displayed: true)
+              locals['bed_temper'] = bedTemp
+            }
         }
 
         if (json.print.containsKey('nozzle_temper')) {
             // Extract nozzle_temper value and send event
             def nozzleTemp = json.print.nozzle_temper as Double
-            sendEvent(name: 'nozzleTemperature', value: nozzleTemp, unit: '°C', displayed: true)
+            if (locals['nozzle_temper'] != nozzleTemp) {
+              locals['nozzle_temper'] = nozzleTemp
+              sendEvent(name: 'nozzleTemperature', value: nozzleTemp, unit: '°C', displayed: true)
+            }
         }
 
         if (json.print.containsKey('chamber_temper')) {
             // Extract chamber_temper value and send event
             def chamberTemp = json.print.chamber_temper as Double
-            sendEvent(name: 'chamberTemperature', value: chamberTemp, unit: '°C', displayed: true)
+            if (locals['chamber_temper'] != chamberTemp) {
+              locals['chamber_temper'] = chamberTemp
+              sendEvent(name: 'chamberTemperature', value: chamberTemp, unit: '°C', displayed: true)
+            }
         }
 
         if (json.print.containsKey('big_fan1_speed')) {
             // Extract big_fan1_speed value and send event
             def fan1Speed = json.print.big_fan1_speed as Integer
-            fan1Speed = (fan1Speed*100)/15
-            fan1Speed = new BigDecimal(fan1Speed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
-            sendEvent(name: 'auxFanSpeed', value: fan1Speed, unit: '%', displayed: true)
+            if (locals['big_fan1_speed'] != fan1Speed) {
+              locals['big_fan1_speed'] = fan1Speed
+              fan1Speed = (fan1Speed*100)/15
+              fan1Speed = new BigDecimal(fan1Speed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
+              sendEvent(name: 'auxFanSpeed', value: fan1Speed, unit: '%', displayed: true)
+            }
         }
 
         if (json.print.containsKey('big_fan2_speed')) {
             // Extract big_fan2_speed value and send event
             def fan2Speed = json.print.big_fan2_speed as Integer
-            fan2Speed = (fan2Speed*100)/15
-            fan2Speed = new BigDecimal(fan2Speed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
-            sendEvent(name: 'chamberFanSpeed', value: fan2Speed, unit: '%', displayed: true)
+            if (locals['big_fan2_speed'] != fan2Speed) {
+              locals['big_fan2_speed'] = fan2Speed
+              fan2Speed = (fan2Speed*100)/15
+              fan2Speed = new BigDecimal(fan2Speed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
+              sendEvent(name: 'chamberFanSpeed', value: fan2Speed, unit: '%', displayed: true)
+            }
         }
 
         if (json.print.containsKey('heatbreak_fan_speed')) {
             // Extract heatbreak_fan_speed value and send event
             def heatbreakFanSpeed = json.print.heatbreak_fan_speed as Integer
-            heatbreakFanSpeed = (heatbreakFanSpeed*100)/15
-            heatbreakFanSpeed = new BigDecimal(heatbreakFanSpeed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
-            sendEvent(name: 'heatbreakFanSpeed', value: heatbreakFanSpeed, unit: '%', displayed: true)
+            if (locals['heatbreak_fan_speed'] != heatbreakFanSpeed) {
+              locals['heatbreak_fan_speed'] = heatbreakFanSpeed
+              heatbreakFanSpeed = (heatbreakFanSpeed*100)/15
+              heatbreakFanSpeed = new BigDecimal(heatbreakFanSpeed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
+              sendEvent(name: 'heatbreakFanSpeed', value: heatbreakFanSpeed, unit: '%', displayed: true)
+            }
         }
 
         if (json.print.containsKey('cooling_fan_speed')) {
             // Extract cooling_fan_speed value and send event
             def coolingFanSpeed = json.print.cooling_fan_speed as Integer
-            coolingFanSpeed = (coolingFanSpeed*100)/15
-            coolingFanSpeed = new BigDecimal(coolingFanSpeed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
-            sendEvent(name: 'partCoolingFanSpeed', value: coolingFanSpeed, unit: '%', displayed: true)
+            if (locals['cooling_fan_speed'] != coolingFanSpeed) {
+              locals['cooling_fan_speed'] = coolingFanSpeed
+              coolingFanSpeed = (coolingFanSpeed*100)/15
+              coolingFanSpeed = new BigDecimal(coolingFanSpeed).setScale(2,BigDecimal.ROUND_HALF_UP).toDouble()
+              sendEvent(name: 'partCoolingFanSpeed', value: coolingFanSpeed, unit: '%', displayed: true)
+            }
         }
         
         // Need both mc_percent and mc_remaining_time, plus state.printing
@@ -317,55 +346,65 @@ def parse(String event) {
                 logDebug("Starting print ${printPerc.toString()}% ${lastPrint.toString()}")
                 sendNote(settings?.notifyName+" "+"Started")
                 state.printing = printPerc
-                // state.callCnt = 0
               } else if (printPerc >= 100 && timeRemaining == 0 && lastPrint != 0) {
                 logDebug("Ending print")
                 sendNote(settings?.notifyName+" "+"Done")
                 state.printing = 0
-                logDebug("total calls ${state.callCnt.toString()}")
-                // state.callCnt = 0
-              } else if (printPerc < 100 && printPerc != lastPrint) {
+             } else if (printPerc < 100 && printPerc != lastPrint) {
                 logDebug("% changed to ${printPerc.toString()}")
+                sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
+                sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
                 sendNote(settings?.notifyName+" "+printPerc.toString()+"%")
                 state.printing = printPerc
               } else {
-                // nothing to do here A lot of calls here. Let's count them
-                // logDebug("empty count is ${state.callCnt.toString()}")
+                // nothing to do here but I like to close else if with else
               }
-              //state.callCnt = state.callCnt + 1
             } else {
-              sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
-              sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
+              if (locals['mc_remaining_time'] != timeRemaining) {
+                locals['mc_remaining_time'] != timeRemaining
+                sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
+              }
+              if (locals['mc_percent'] != printPerc) {
+                locals['mc_percent'] != printPerc
+                sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
+              }
             }
         }
 
         if (json.print.containsKey('spd_lvl')) {
             // Extract spd_lvl value and send event
             def currentSpeed = json.print.spd_lvl as Integer
-            switch(currentSpeed) {
-                case 1:
-                    currentPrintSpeed = Silent
-                    break;
-                case 2 :
-                    currentPrintSpeed = "Standard"
-                    break;
-                case 3:
-                    currentPrintSpeed = "Sport"
-                    break;
-                case 4:
-                    currentPrintSpeed = "Ludicrous"
-                    break;
+            if (locals['spd_lvl'] != currentSpeed) {
+              locals['spd_lvl'] = currentSpeed
+              switch(currentSpeed) {
+                  case 1:
+                      currentPrintSpeed = Silent
+                      break;
+                  case 2 :
+                      currentPrintSpeed = "Standard"
+                      break;
+                  case 3:
+                      currentPrintSpeed = "Sport"
+                      break;
+                  case 4:
+                      currentPrintSpeed = "Ludicrous"
+                      break;
+              }
+              sendEvent(name: 'currentPrintSpeed', value: currentPrintSpeed, displayed: true)
             }
-            sendEvent(name: 'currentPrintSpeed', value: currentPrintSpeed, displayed: true)
         }
 
         if (json.print.containsKey('subtask_name')) {
             // Extract subtask_name value and send event
             def currentPrintFile = json.print.subtask_name as String
-            sendEvent(name: 'currentPrintFile', value: currentPrintFile, displayed: true)
+            if (locals['subtask_name'] != currentPrintFile) {
+              locals['subtask_name'] != currentPrintFile
+              sendEvent(name: 'currentPrintFile', value: currentPrintFile, displayed: true)
+            }
         }
 
-        //unsubscribe()
+        if (settings.runFree == false) unsubscribe()
+        state.vars = locals
     }
 }
 
