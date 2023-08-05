@@ -17,12 +17,14 @@
  * v0.1.2   RLE     Added print time left and print percent completion.
                     Added current print file.
                     Added rounding for fan speed %.
- *
+ * This is Cecil Coupes version of the driver - not really public. Ryan gave up on Hubitat. 
+ * X1C firmware 1.06 changed some things. I also noticed that bambu sends a
+ * lot of messages - that can be (is) a problem for Hubitat. 
  *
  */
 
 metadata {
-    definition (name: "BambuLabs", namespace: "rle.bl", author: "FriedCheese2006", importUrl: "tbd") {
+    definition (name: "BambuLabs", namespace: "ccoupe", author: "Cecil Coupe", importUrl: "tbd") {
         capability "Initialize"
         capability "Health Check"
         capability "Presence Sensor"
@@ -337,10 +339,8 @@ def parse(String event) {
             }
         }
         
-        // Need both mc_percent and mc_remaining_time, plus state.printing
-        if (json.print.containsKey('mc_percent') && json.print.containsKey('mc_remaining_time')) {
-            def timeRemaining = json.print.mc_remaining_time as Integer
-            def printPerc = json.print.mc_percent as Integer
+        if (json.print.containsKey('mc_percent')) { ) {
+           def printPerc = json.print.mc_percent as Integer
             if (settings.enableNotify) {
               // Need to figure out 'Started' and 'Finished'
               lastPrint = state.printing
@@ -354,7 +354,6 @@ def parse(String event) {
                 state.printing = 0
              } else if (printPerc < 100 && printPerc != lastPrint) {
                 logDebug("% changed to ${printPerc.toString()}")
-                sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
                 sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
                 sendNote(settings?.notifyName+" "+printPerc.toString()+"%")
                 state.printing = printPerc
@@ -362,14 +361,18 @@ def parse(String event) {
                 // nothing to do here but I like to close else if with else
               }
             } else {
-              if (locals['mc_remaining_time'] != timeRemaining) {
-                locals['mc_remaining_time'] != timeRemaining
-                sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
-              }
-              if (locals['mc_percent'] != printPerc) {
+             if (locals['mc_percent'] != printPerc) {
                 locals['mc_percent'] != printPerc
                 sendEvent(name: 'printPercentComplete', value: printPerc, unit: '%', displayed: true)
               }
+            }
+        }
+        
+        if (json.print.containsKey('mc_remaining_time')) {
+            def timeRemaining = json.print.mc_remaining_time as Integer
+            if (locals['mc_remaining_time'] != timeRemaining) {
+                locals['mc_remaining_time'] != timeRemaining
+                sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
             }
         }
 
