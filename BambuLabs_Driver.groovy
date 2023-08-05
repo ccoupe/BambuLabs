@@ -24,7 +24,9 @@
  */
 
 metadata {
-    definition (name: "BambuLabs", namespace: "ccoupe", author: "Cecil Coupe", importUrl: "tbd") {
+    definition (name: "BambuLabs", namespace: "ccoupe", author: "Cecil Coupe", 
+          importUrl: "https://raw.githubusercontent.com/ccoupe/BambuLabs/1cad0f63adc87a35b1d1354dae4ba78952a4bf16/BambuLabs_Driver.groovy")
+      {
         capability "Initialize"
         capability "Health Check"
         capability "Presence Sensor"
