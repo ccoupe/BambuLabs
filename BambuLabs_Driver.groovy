@@ -350,7 +350,7 @@ def parse(String event) {
                 logDebug("Starting print ${printPerc.toString()}% ${lastPrint.toString()}")
                 sendNote(settings?.notifyName+" "+"Started")
                 state.printing = printPerc
-              } else if (printPerc >= 100 && timeRemaining == 0 && lastPrint != 0) {
+              } else if (printPerc >= 100 && lastPrint != 0) {
                 logDebug("Ending print")
                 sendNote(settings?.notifyName+" "+"Done")
                 state.printing = 0
@@ -373,10 +373,15 @@ def parse(String event) {
         if (json.print.containsKey('mc_remaining_time')) {
             def timeRemaining = json.print.mc_remaining_time as Integer
             if (locals['mc_remaining_time'] != timeRemaining) {
-                locals['mc_remaining_time'] != timeRemaining
+                locals['mc_remaining_time'] = timeRemaining
                 sendEvent(name: 'printTimeRemaining', value: timeRemaining, unit: 'Minutes', displayed: true)
             }
-        }
+            if (timeRemaining == 0 && state.printing < 1) {
+              logDebug("Ending print (tmo?)")
+              sendNote(settings?.notifyName+" "+"Done")
+              state.printing = 0
+            }
+       }
 
         if (json.print.containsKey('spd_lvl')) {
             // Extract spd_lvl value and send event
